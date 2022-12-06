@@ -14,8 +14,8 @@ struct CompileTarget {
 impl CompileTarget {
     fn new(parent_dir: &String, file_name: &String) -> CompileTarget {
         let static_name: String = file_name.to_string();
-        let vm_file = String::from(Path::new(parent_dir).join(file_name.to_owned() + ".vm").to_str().unwrap());
-        let asm_file = String::from(Path::new(parent_dir).join(file_name.to_owned() + ".asm").to_str().unwrap());
+        let vm_file = Path::new(parent_dir).join(file_name.to_owned() + ".vm").to_str().unwrap().to_string();
+        let asm_file = Path::new(parent_dir).join(file_name.to_owned() + ".asm").to_str().unwrap().to_string();
 
         CompileTarget { vm_file, asm_file, static_name }
     }
@@ -23,17 +23,15 @@ impl CompileTarget {
 
 fn parse_args(args: &[String]) -> Result<Vec<CompileTarget>, Box<dyn std::error::Error>> {
     fn g(path: &String) -> CompileTarget {
-        let path = Path::new(&path);
-        let parent = String::from(path.parent().unwrap().to_str().unwrap());
-        let file_stem = String::from(path.file_stem().unwrap().to_str().unwrap());
-        CompileTarget::new(&parent, &file_stem)
+        CompileTarget::new(&Path::new(&path).parent().unwrap().to_str().unwrap().to_string(),
+                           &Path::new(&path).file_stem().unwrap().to_str().unwrap().to_string())
     }
 
     if args.len() < 1 {
-        return Err(String::from("not enough arguments").into());
+        return Err("not enough arguments".to_string().into());
     }
 
-    let canonical_p = String::from(fs::canonicalize(PathBuf::from(&args[1]))?.as_path().to_str().unwrap());
+    let canonical_p = fs::canonicalize(PathBuf::from(&args[1])).unwrap().as_path().to_str().unwrap().to_string();
 
     let files = if metadata(&canonical_p).unwrap().is_dir() {
         fs::read_dir(&canonical_p).unwrap()
@@ -67,7 +65,7 @@ fn get_mem_seg(seg: &str) -> Result<&str, String> {
         "argument" => "ARG",
         "this" => "THIS",
         "that" => "THAT",
-        seg => return Err(String::from(format!("unimplemented mem_seg: {seg}"))),
+        seg => return Err(format!("unimplemented mem_seg: {seg}").to_string()),
     })
 }
 
@@ -77,7 +75,7 @@ fn get_bi_op(comm: &str) -> Result<&str, String> {
         "sub" => "-",
         "and" => "&",
         "or" => "|",
-        comm => return Err(String::from(format!("unimplemented bi_op: {comm}"))),
+        comm => return Err(format!("unimplemented bi_op: {comm}").to_string()),
     })
 }
 
@@ -85,7 +83,7 @@ fn get_si_op(comm: &str) -> Result<&str, String> {
     Ok(match comm {
         "neg" => "-",
         "not" => "!",
-        comm => return Err(String::from(format!("unimplemented si_op: {comm}"))),
+        comm => return Err(format!("unimplemented si_op: {comm}").to_string()),
     })
 }
 
@@ -94,7 +92,7 @@ fn get_cmp_op(comm: &str) -> Result<&str, String> {
         "eq" => "JEQ",
         "gt" => "JGT",
         "lt" => "JLT",
-        comm => return Err(String::from(format!("unimplemented cmp_op: {comm}"))),
+        comm => return Err(format!("unimplemented cmp_op: {comm}").to_string()),
     })
 }
 
@@ -103,11 +101,11 @@ impl VMCommand {
     fn new(s: &String) -> Result<VMCommand, String> {
         let v: Vec<&str> = s.as_str().trim().split(" ").collect();
         match v[0] {
-            "push" => return Ok(VMCommand::CPush(String::from(v[1].trim()), v[2].trim().parse::<u16>().unwrap())),
-            "pop" => return Ok(VMCommand::CPop(String::from(v[1].trim()), v[2].trim().parse::<u16>().unwrap())),
+            "push" => return Ok(VMCommand::CPush(v[1].trim().to_string(), v[2].trim().parse::<u16>().unwrap())),
+            "pop" => return Ok(VMCommand::CPop(v[1].trim().to_string(), v[2].trim().parse::<u16>().unwrap())),
             "sub" | "add" | "and" | "or" | "neg" | "not" | "eq" | "gt" | "lt" =>
-                Ok(VMCommand::CArithmetic(String::from(v[0]), 0)),
-            s => return Err(String::from("unimplemented vm command type: ") + s),
+                Ok(VMCommand::CArithmetic(v[0].to_string(), 0)),
+            s => return Err("unimplemented vm command type: ".to_string() + s),
         }
     }
 
@@ -116,7 +114,7 @@ impl VMCommand {
             VMCommand::CArithmetic(seg, _) => VMCommand::carithmetic2asm(seg, jump_count)?,
             VMCommand::CPush(seg, idx) => VMCommand::cpush2asm(seg, idx, static_name)?,
             VMCommand::CPop(seg, idx) => VMCommand::cpop2asm(seg, idx, static_name)?,
-            _ => return Err(String::from("unmatched vmcommand ")),
+            _ => return Err("unmatched vmcommand ".to_string()),
         })
     }
 
@@ -164,13 +162,13 @@ impl VMCommand {
                 format!("@R15\nM=-1\n@SP\nAM=M-1\nD=M\nA=A-1\nD=M-D\n@JMP_FALSE{jump_count}\nD;{op}\n\
                 @R15\nM=0\n(JMP_FALSE{jump_count})\n@R15\nD=M\n@SP\nA=M-1\nM=D")
             }
-            comm => return Err(String::from(format!("unimplemented arithmetic: {comm}"))),
+            comm => return Err(format!("unimplemented arithmetic: {comm}").to_string()),
         })
     }
 }
 
 fn translate_vm(target_vm: &CompileTarget) -> Result<String, String> {
-    println!("process {}.write to {}", &target_vm.vm_file, &target_vm.asm_file);
+    println!("process {} write to {}", &target_vm.vm_file, &target_vm.asm_file);
     let file = File::open(&target_vm.vm_file).unwrap();
     let reader = BufReader::new(file);
 
@@ -179,7 +177,7 @@ fn translate_vm(target_vm: &CompileTarget) -> Result<String, String> {
     let mut result_asm = String::new();
     for line in reader.lines() {
         let unwrapped = line.unwrap();
-        let line_ = String::from(&unwrapped[..unwrapped.find("//").unwrap_or(unwrapped.len())]);
+        let line_ = &unwrapped[..unwrapped.find("//").unwrap_or(unwrapped.len())].to_string();
         if line_.len() > 0 {
             let vm_ = VMCommand::new(&line_)?;
             let asm_ = vm_.to_asm(&mut jump_count, target_vm.static_name.as_str())?;
@@ -192,14 +190,9 @@ fn translate_vm(target_vm: &CompileTarget) -> Result<String, String> {
 
 fn main() {
     let args: Vec<String> = env::args().collect();
-    let input_vms = parse_args(&args).unwrap_or_else(|err| {
-        println!("Problem parsing arguments: {}", err);
-        process::exit(1);
-    });
-
+    let input_vms = parse_args(&args).expect("Problem parsing arguments");
     for x in input_vms {
-        let result_asm = translate_vm(&x).unwrap();
-        print!("{}", result_asm);
+        let result_asm = translate_vm(&x).expect("failed to process vm file");
         let mut file = File::create(&x.asm_file).expect("failed to create an asm file!");
         file.write_all(result_asm.as_ref()).expect("failed to write asm file!");
     }
