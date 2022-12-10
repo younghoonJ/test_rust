@@ -144,7 +144,7 @@ impl VMCommand {
                 format!("@{mem_seg}\nD=M\n@{idx}\nD=D+A")
             }
         };
-        Ok(s + "\n@R15\nM=D\n@SP\nAM=M-1\nD=M\nR15\nA=M\nM=D")
+        Ok(s + "\n@R15\nM=D\n@SP\nAM=M-1\nD=M\n@R15\nA=M\nM=D")
     }
 
     fn carithmetic2asm(comm: &str, jump_count: &mut u64) -> Result<String, String> {
