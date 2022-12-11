@@ -135,8 +135,8 @@ impl VMCommand {
 
     fn cpop2asm(seg: &str, idx: &u16, static_name: &str) -> Result<String, String> {
         let s = match (seg, idx) {
-            ("pointer", 0) => "@THISD=A".to_string(),
-            ("pointer", 1) => "@THATD=A".to_string(),
+            ("pointer", 0) => "@THIS\nD=A".to_string(),
+            ("pointer", 1) => "@THAT\nD=A".to_string(),
             ("temp", idx) => format!("@5\nD=A\n@{idx}\nD=D+A"),
             ("static", idx) => format!("@{static_name}.{idx}\nD=A"),
             (seg, idx) => {
@@ -159,8 +159,10 @@ impl VMCommand {
             }
             "eq" | "gt" | "lt" => {
                 let op = get_cmp_op(comm)?;
-                format!("@R15\nM=-1\n@SP\nAM=M-1\nD=M\nA=A-1\nD=M-D\n@JMP_FALSE{jump_count}\nD;{op}\n\
-                @R15\nM=0\n(JMP_FALSE{jump_count})\n@R15\nD=M\n@SP\nA=M-1\nM=D")
+                let v = format!("@R15\nM=-1\n@SP\nAM=M-1\nD=M\nA=A-1\nD=M-D\n@JMP_FALSE{jump_count}\nD;{op}\n\
+                @R15\nM=0\n(JMP_FALSE{jump_count})\n@R15\nD=M\n@SP\nA=M-1\nM=D");
+                *jump_count += 1;
+                v
             }
             comm => return Err(format!("unimplemented arithmetic: {comm}").to_string()),
         })
